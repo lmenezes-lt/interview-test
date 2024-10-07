@@ -16,8 +16,8 @@ public class RouteController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("{ids}")]
-    public List<RouteDTO> GetById(string[] ids)
+    [HttpPost("get-by-id/")]
+    public List<RouteDTO> GetById([FromBody]string[] ids, CancellationToken ct)
     {
         var routes = _routeService.GetByIds(ids).Result;
 
@@ -47,5 +47,15 @@ public class RouteController : ControllerBase
         }
 
         return response;
+    }
+
+    [HttpPost("create-route/")]
+    public Task CreateRoute(
+        [FromBody]string name,
+        [FromBody] string trailerId,
+        [FromBody] string[] shipmentIds,
+        CancellationToken ct)
+    {
+        return _routeService.CreateRoute(name, trailerId, shipmentIds);
     }
 }

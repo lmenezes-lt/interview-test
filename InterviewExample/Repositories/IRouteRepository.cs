@@ -5,5 +5,5 @@ namespace InterviewExample.Repositories;
 public interface IRouteRepository
 {
     public Task<RouteDAO> GetRouteById(Guid id);
-    Task UpdateRoute(RouteDAO route);
+    public Task CreateRoute(RouteDAO route);
 }

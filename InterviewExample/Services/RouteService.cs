@@ -7,12 +7,15 @@ namespace InterviewExample.Services
     {
         private readonly IRouteRepository _routeRepository;
         private readonly IShipmentRepository _shipmentRepository;
+        private readonly IRouteNotifier _routeNotifier;
 
         public RouteService(IRouteRepository routeRepository,
-            IShipmentRepository shipmentRepository)
+            IShipmentRepository shipmentRepository,
+            IRouteNotifier routeNotifier)
         {
             _routeRepository = routeRepository;
             _shipmentRepository = shipmentRepository;
+            _routeNotifier = routeNotifier;
         }
 
         public Task<List<RouteDAO>> GetByIds(string[] ids)
@@ -32,41 +35,59 @@ namespace InterviewExample.Services
             return Task.FromResult(routes);
         }
 
-        public async Task<RouteDAO> LoadRouteById(string id, string[] shipmentIds)
+        public async Task CreateRoute(string name, string trailerId, string[] shipmentIds)
         {
-            if (string.IsNullOrEmpty(id))
+            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(trailerId))
             {
-                throw new Exception("Invalid id");
-            }
-
-            var route = _routeRepository.GetRouteById(new Guid(id)).Result;
-
-            foreach (var shipmentId in shipmentIds)
-            {
-                var shipment = _shipmentRepository.GetShipmentById(new Guid(shipmentId)).Result;
-                if (shipment.IsLoadedOnRoute == true)
+                List<ShipmentDAO> shipmentDaos = new List<ShipmentDAO>();
+                foreach (var id in shipmentIds)
                 {
-                    throw new Exception("Shipment already loaded");
+                    var shipmentDao = _shipmentRepository.GetShipmentById(new Guid(id)).Result;
+                    if (shipmentDao.IsLoadedOnRoute == true)
+                        throw new Exception("Shipment already loaded");
+                    if (shipmentDao.WasDelivered == true)
+                        throw new Exception("Shipment already delivered");
+
+                    shipmentDaos.Append(shipmentDao);
                 }
 
-                if (shipment.WasDelivered == true)
+                var routeDao = new RouteDAO
                 {
-                    throw new Exception("Shipment already delivered");
+                    Id = Guid.NewGuid(),
+                    TrailerId = new Guid(trailerId),
+                    TrailerName = null,
+                    Name = name
+                };
+
+                await _routeRepository.CreateRoute(routeDao).ContinueWith(s =>
+                {
+                    _shipmentRepository.AssignToRoute(shipmentDaos, routeDao);
+                });
+
+                foreach (var shipmentDao in routeDao.Shipments)
+                {
+                    shipmentDao.IsLoadedOnRoute = true;
+                    await _shipmentRepository.UpdateShipment(shipmentDao);
                 }
 
-                shipment.IsLoadedOnRoute = true;
-                route.Shipments.Append(shipment);
-                _routeRepository.UpdateRoute(route);
+                await _routeNotifier.Notify(routeDao, "route-created");
             }
-
-            return route;
+            else
+            {
+                throw new Exception("cannot create route");
+            }
         }
     }
+}
+
+public interface IRouteNotifier
+{
+    Task Notify(RouteDAO routeDao, string eventName);
 }
 
 public interface IRouteService
 {
     public Task<List<RouteDAO>> GetByIds(string[] ids);
-    public Task<RouteDAO> LoadRouteById(string id, string[] shipmentIds);
+    public Task CreateRoute(string name, string trailerId, string[] shipmentIds);
 }
 
