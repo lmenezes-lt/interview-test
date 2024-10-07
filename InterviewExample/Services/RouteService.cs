@@ -80,11 +80,6 @@ namespace InterviewExample.Services
     }
 }
 
-public interface IRouteNotifier
-{
-    Task Notify(RouteDAO routeDao, string eventName);
-}
-
 public interface IRouteService
 {
     public Task<List<RouteDAO>> GetByIds(string[] ids);
