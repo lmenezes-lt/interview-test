@@ -9,30 +9,14 @@ namespace InterviewExample.Services
         private readonly IShipmentRepository _shipmentRepository;
         private readonly IRouteNotifier _routeNotifier;
 
-        public RouteService(IRouteRepository routeRepository,
+        public RouteService(
+            IRouteRepository routeRepository,
             IShipmentRepository shipmentRepository,
             IRouteNotifier routeNotifier)
         {
             _routeRepository = routeRepository;
             _shipmentRepository = shipmentRepository;
             _routeNotifier = routeNotifier;
-        }
-
-        public Task<List<RouteDAO>> GetByIds(string[] ids)
-        {
-            List<RouteDAO> routes = new List<RouteDAO>();
-            foreach (var id in ids)
-            {
-                if (string.IsNullOrEmpty(id))
-                {
-                    throw new Exception("invalid id");
-                }
-
-                var route = _routeRepository.GetRouteById(new Guid(id)).Result;
-                routes.Append(route);
-            }
-
-            return Task.FromResult(routes);
         }
 
         public async Task CreateRoute(string name, string trailerId, string[] shipmentIds)
@@ -59,10 +43,8 @@ namespace InterviewExample.Services
                     Name = name
                 };
 
-                await _routeRepository.CreateRoute(routeDao).ContinueWith(s =>
-                {
-                    _shipmentRepository.AssignToRoute(shipmentDaos, routeDao);
-                });
+                await _routeRepository.CreateRoute(routeDao);
+                await _shipmentRepository.AssignToRoute(shipmentDaos, routeDao);
 
                 foreach (var shipmentDao in routeDao.Shipments)
                 {
@@ -77,12 +59,16 @@ namespace InterviewExample.Services
                 throw new Exception("cannot create route");
             }
         }
+
+        public Task<List<RouteDAO>> GetByIds(string[] ids)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public interface IRouteService
+    {
+        public Task CreateRoute(string name, string trailerId, string[] shipmentIds);
+        public Task<List<RouteDAO>> GetByIds(string[] ids);
     }
 }
-
-public interface IRouteService
-{
-    public Task<List<RouteDAO>> GetByIds(string[] ids);
-    public Task CreateRoute(string name, string trailerId, string[] shipmentIds);
-}
-
